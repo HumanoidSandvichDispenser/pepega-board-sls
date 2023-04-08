@@ -3,41 +3,15 @@ import {
     APIGatewayProxyEvent,
     APIGatewayProxyResult
 } from "aws-lambda";
-import AWS from "aws-sdk";
-import { PutItemInputAttributeMap } from "aws-sdk/clients/dynamodb";
 import { randomUUID, randomBytes, pbkdf2Sync } from "crypto";
+import PepegaDB from "../pepegadb";
+import { isValidUsername, getUnixTime } from "../utils";
 
-const dynamodb = new AWS.DynamoDB.DocumentClient();
-const lambda = new AWS.Lambda();
-
-function genHex(size: number) {
-    let str = "";
-    for (let i = 0; i < size; i++) {
-        str += Math.floor(Math.random() * 16).toString(16);
-    }
-    return str;
-}
+const pepegadb = new PepegaDB();
 
 async function hashSalt(name: string, pw: string, salt: string) {
     let fullSalt = name + salt + "gachiGASM";
     return pbkdf2Sync(pw, fullSalt, 77777, 64, "sha512").toString("hex");
-};
-
-async function fetchUser(username: string) {
-    let results = await dynamodb.query({
-            TableName: "pepega-board",
-            IndexName: "username-index",
-            KeyConditionExpression: "username = :username",
-            ExpressionAttributeValues: {
-                ":username": username,
-            },
-        }).promise();
-
-    if (!results.Items || results.Items.length == 0) {
-        return undefined;
-    }
-
-    return results.Items[0];
 };
 
 async function authenticate(username: string, pw: string) {
@@ -45,7 +19,7 @@ async function authenticate(username: string, pw: string) {
         return undefined;
     }
 
-    let user = await fetchUser(username);
+    let user = await pepegadb.fetchUser(username);
 
     if (!user) {
         return undefined;
@@ -55,19 +29,14 @@ async function authenticate(username: string, pw: string) {
 
     // do not authenticate if password is incorrect
     if (hash != user.pw ?? "") {
-        return JSON.stringify({
-            hash,
-            PK: user.PK,
-            username,
-            pw,
-            salt: user.salt,
-        });
+        console.log(`Attempted to log into ${username}; attempt = ${hash}`);
+        return undefined;
     }
 
     let token = randomBytes(32).toString("hex");
 
     // expires in 7776000 seconds (90 days)
-    let expirary = Math.floor(new Date().getTime() / 1000) + 7776000;
+    let expirary = getUnixTime() + 7776000;
 
     const item = {
         PK: user.PK,
@@ -78,21 +47,32 @@ async function authenticate(username: string, pw: string) {
 
     // push token to DB
     // "await" to ensure that the item is put in the DB
-    await dynamodb
+    await pepegadb
         .put({
             TableName: "pepega-board",
             Item: item,
         }).promise();
 
-    return token;
+    return {
+        id: user.PK,
+        token,
+    };
 };
 
 export const login: APIGatewayProxyHandler
         = async (event: APIGatewayProxyEvent):
         Promise<APIGatewayProxyResult> => {
-    const request = JSON.parse(event.body as string ?? "{}");
-    const auth = await authenticate(request.username, request.pw);
-    if (!auth) {
+    const { username, pw } = JSON.parse(event.body as string ?? "{ }");
+
+    if (!username || !pw) {
+        return {
+            statusCode: 401,
+            body: "No username or password supplied",
+        };
+    }
+
+    const { id, token } = await authenticate(username, pw) || { };
+    if (!token) {
         return {
             statusCode: 401,
             body: "Incorrect password",
@@ -101,10 +81,13 @@ export const login: APIGatewayProxyHandler
     return {
         statusCode: 200,
         body: JSON.stringify({
-            auth,
+            token,
         }),
-        headers: {
-            "Set-Cookie": "pepegaboard_auth=" + auth,
+        multiValueHeaders: {
+            "Set-Cookie": [
+                "pepegaboard_auth=" + token,
+                "pepegaboard_user=" + id,
+            ],
         },
     };
 }
@@ -114,7 +97,28 @@ export const register: APIGatewayProxyHandler
         Promise<APIGatewayProxyResult> => {
     const request = JSON.parse(event.body as string ?? "{}");
 
+    if (!request.username || !request.pw) {
+        return {
+            statusCode: 400,
+            body: "No username/password supplemented",
+        };
+    }
+
+    // must be a valid username
+    if (!isValidUsername(request.username)) {
+        return {
+            statusCode: 400,
+            body: "Invalid username"
+        };
+    }
+
     // TODO: check if username already exists in DB
+    if (pepegadb.fetchUser(request.username) != undefined) {
+        return {
+            statusCode: 400,
+            body: "User already exists",
+        };
+    }
 
     const id = randomUUID();
     const salt = randomBytes(16).toString("hex");
@@ -126,10 +130,11 @@ export const register: APIGatewayProxyHandler
         SK: "USER#" + id,
         entity: "USER",
         username: request.username,
+        display_name: request.username, // same as username by default
         pw: hash,
         salt,
     };
-    await dynamodb
+    await pepegadb
         .put({
             Item: item,
             TableName: "pepega-board",
