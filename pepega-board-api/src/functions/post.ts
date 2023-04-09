@@ -1,12 +1,10 @@
 import { authenticateCookies } from "../jwt";
 import PepegaDB from "../pepegadb";
-import { APIGatewayProxyEvent, APIGatewayProxyHandler, APIGatewayProxyResult } from "aws-lambda";
+import APIEndpoint from "../apiendpoint";
 
 const pepegadb = new PepegaDB();
 
-export const createPost: APIGatewayProxyHandler
-        = async (event: APIGatewayProxyEvent):
-        Promise<APIGatewayProxyResult> => {
+export const createPost: APIEndpoint = async (event) => {
     let { title, text, isPublic } = JSON.parse(event.body ?? "{}");
     title ??= "Untitled";
     if (!title || !text) {
@@ -47,9 +45,7 @@ export const createPost: APIGatewayProxyHandler
     };
 }
 
-export const getPosts: APIGatewayProxyHandler
-        = async (event: APIGatewayProxyEvent):
-        Promise<APIGatewayProxyResult> => {
+export const getPosts: APIEndpoint = async (event) => {
     let results = await pepegadb
         .query({
             TableName: "pepega-board",
@@ -81,9 +77,7 @@ export const getPosts: APIGatewayProxyHandler
     };
 }
 
-export const getPostsFromUser: APIGatewayProxyHandler
-        = async (event: APIGatewayProxyEvent):
-        Promise<APIGatewayProxyResult> => {
+export const getPostsFromUser: APIEndpoint = async (event) => {
     const { id } = JSON.parse(event.body ?? "{}");
     if (!id) {
         return {

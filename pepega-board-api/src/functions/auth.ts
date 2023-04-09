@@ -7,6 +7,7 @@ import { randomUUID, randomBytes, pbkdf2Sync } from "crypto";
 import PepegaDB from "../pepegadb";
 import { isValidUsername, getUnixTime } from "../utils";
 import { authenticateCookies, createJWT } from "../jwt";
+import APIEndpoint from "src/apiendpoint";
 
 const pepegadb = new PepegaDB();
 
@@ -39,9 +40,7 @@ async function authenticate(username: string, pw: string) {
     return token;
 };
 
-export const checkAuth: APIGatewayProxyHandler
-        = async (event: APIGatewayProxyEvent):
-        Promise<APIGatewayProxyResult> => {
+export const checkAuth: APIEndpoint = async (event) => {
     let cookies = authenticateCookies(event.headers);
     if (!cookies) {
         return {
@@ -56,9 +55,7 @@ export const checkAuth: APIGatewayProxyHandler
     };
 }
 
-export const login: APIGatewayProxyHandler
-        = async (event: APIGatewayProxyEvent):
-        Promise<APIGatewayProxyResult> => {
+export const login: APIEndpoint = async (event) => {
     const { username, pw } = JSON.parse(event.body as string ?? "{ }");
 
     if (!username || !pw) {
@@ -87,9 +84,7 @@ export const login: APIGatewayProxyHandler
     };
 }
 
-export const register: APIGatewayProxyHandler
-        = async (event: APIGatewayProxyEvent):
-        Promise<APIGatewayProxyResult> => {
+export const register: APIEndpoint = async (event) => {
     const request = JSON.parse(event.body as string ?? "{}");
 
     if (!request.username || !request.pw) {
@@ -118,6 +113,8 @@ export const register: APIGatewayProxyHandler
     const salt = randomBytes(16).toString("hex");
     const hash = hashSalt(request.username, request.pw, salt);
 
+    const token = createJWT(id, { });
+
     // register user in the db
     const item = {
         PK: "USER#" + id,
@@ -140,6 +137,13 @@ export const register: APIGatewayProxyHandler
 
     return {
         statusCode: 200,
-        body: JSON.stringify(item),
+        body: JSON.stringify({
+            id,
+            username: request.username,
+            token,
+        }),
+        headers: {
+            "Set-Cookie": "pb_jwt=" + token,
+        },
     };
 }
