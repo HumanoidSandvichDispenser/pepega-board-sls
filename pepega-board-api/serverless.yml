@@ -2,6 +2,19 @@ service: pepega-board-api
 
 custom:
   secrets: ${file(secrets.json)}
+  dynamodb:
+    # local dynamodb instance for development
+    stages:
+      - dev
+    start:
+      port: 8000
+      inMemory: false
+      heapInitial: 200m
+      heapMax: 1g
+      dbPath: /tmp/dynamodb/
+      migrate: true
+      seed: true
+      convertEmptyValues: true
 
 provider:
   name: aws
@@ -64,6 +77,8 @@ functions:
 
 plugins:
   - serverless-plugin-typescript
+  - serverless-dynamodb-local
+  - serverless-offline
 
 resources:
   Resources:

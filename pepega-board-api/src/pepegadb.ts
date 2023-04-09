@@ -5,11 +5,35 @@ import { randomUUID } from "crypto";
 import { env } from "process";
 import { authenticateJWT } from "./jwt";
 
+const HOST = process.env.LOCAL_DDB_HOST || "localhost";
+const PORT = process.env.LOCAL_DDB_PORT || 8000;
+const ENDPOINT = process.env.LOCAL_DDB_ENDPOINT || `http://${HOST}:${PORT}`;
+
 /**
  * This is a wrapper around DynamoDB with helper functions to simplify the
  * Lambda functions.
  */
 export default class PepegaDB extends AWS.DynamoDB.DocumentClient {
+    constructor(options: AWS.DynamoDB.Types.ClientConfiguration = { }) {
+        let isOffline = process.env.IS_OFFLINE || process.env.IS_LOCAL;
+
+        let localOptions = isOffline ? {
+            region: "localhost",
+            endpoint: ENDPOINT,
+            accessKeyId: "ID",
+            serverAccessKey: "KEY",
+        } : { };
+
+        if (isOffline) {
+            console.info("Running a local DynamoDB instance.");
+        }
+
+        super({
+            ...options,
+            ...localOptions,
+        });
+    }
+
     async fetchUser(username: string) {
         let results = await this
             .query({
