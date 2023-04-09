@@ -1,5 +1,8 @@
 service: pepega-board-api
 
+custom:
+  secrets: ${file(secrets.json)}
+
 provider:
   name: aws
   runtime: nodejs16.x
@@ -18,6 +21,8 @@ provider:
             # will eventually replace this wildcard
             - "*"
             #- { "Fn::GetAtt": ["PepegaBoardTable", "Arn"] }
+  environment:
+    JWT_SECRET: ${self:custom.secrets.JWT_SECRET}
 
 functions:
   register:
@@ -31,6 +36,30 @@ functions:
     events:
       - http:
           path: pepega-board-api/login
+          method: post
+  check-auth:
+    handler: src/functions/auth.checkAuth
+    events:
+      - http:
+          path: pepega-board-api/check-auth
+          method: get
+  create-post:
+    handler: src/functions/post.createPost
+    events:
+      - http:
+          path: pepega-board-api/create-post
+          method: post
+  get-posts:
+    handler: src/functions/post.getPosts
+    events:
+      - http:
+          path: pepega-board-api/get-posts
+          method: get
+  get-posts-from-user:
+    handler: src/functions/post.getPostsFromUser
+    events:
+      - http:
+          path: pepega-board-api/get-posts-from-user
           method: get
 
 plugins:
@@ -52,6 +81,12 @@ resources:
             AttributeType: S
           - AttributeName: username
             AttributeType: S
+          - AttributeName: entity
+            AttributeType: S
+          - AttributeName: owner
+            AttributeType: S
+          - AttributeName: time
+            AttributeType: N
         KeySchema:
           - AttributeName: PK
             KeyType: HASH
@@ -65,6 +100,27 @@ resources:
             Projection:
               ProjectionType: ALL
             ProvisionedThroughput:
-              ReadCapacityUnits: 2
-              WriteCapacityUnits: 2
-
+              ReadCapacityUnits: 1
+              WriteCapacityUnits: 1
+          - IndexName: entity-time-index
+            KeySchema:
+              - AttributeName: entity
+                KeyType: HASH
+              - AttributeName: time
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 1
+              WriteCapacityUnits: 1
+          - IndexName: owner-time-index
+            KeySchema:
+              - AttributeName: owner
+                KeyType: HASH
+              - AttributeName: time
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 1
+              WriteCapacityUnits: 1

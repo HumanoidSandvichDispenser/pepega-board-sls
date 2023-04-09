@@ -6,10 +6,11 @@ import {
 import { randomUUID, randomBytes, pbkdf2Sync } from "crypto";
 import PepegaDB from "../pepegadb";
 import { isValidUsername, getUnixTime } from "../utils";
+import { authenticateCookies, createJWT } from "../jwt";
 
 const pepegadb = new PepegaDB();
 
-async function hashSalt(name: string, pw: string, salt: string) {
+function hashSalt(name: string, pw: string, salt: string) {
     let fullSalt = name + salt + "gachiGASM";
     return pbkdf2Sync(pw, fullSalt, 77777, 64, "sha512").toString("hex");
 };
@@ -25,7 +26,7 @@ async function authenticate(username: string, pw: string) {
         return undefined;
     }
 
-    const hash = await hashSalt(username, pw, user.salt);
+    const hash = hashSalt(username, pw, user.salt);
 
     // do not authenticate if password is incorrect
     if (hash != user.pw ?? "") {
@@ -33,31 +34,27 @@ async function authenticate(username: string, pw: string) {
         return undefined;
     }
 
-    let token = randomBytes(32).toString("hex");
+    let token = createJWT(user.PK, { });
 
-    // expires in 7776000 seconds (90 days)
-    let expirary = getUnixTime() + 7776000;
+    return token;
+};
 
-    const item = {
-        PK: user.PK,
-        SK: "AUTH#" + token,
-        entity: "AUTH",
-        expirary,
-    };
-
-    // push token to DB
-    // "await" to ensure that the item is put in the DB
-    await pepegadb
-        .put({
-            TableName: "pepega-board",
-            Item: item,
-        }).promise();
+export const checkAuth: APIGatewayProxyHandler
+        = async (event: APIGatewayProxyEvent):
+        Promise<APIGatewayProxyResult> => {
+    let cookies = authenticateCookies(event.headers);
+    if (!cookies) {
+        return {
+            statusCode: 401,
+            body: "Unauthorized",
+        };
+    }
 
     return {
-        id: user.PK,
-        token,
+        statusCode: 200,
+        body: "",
     };
-};
+}
 
 export const login: APIGatewayProxyHandler
         = async (event: APIGatewayProxyEvent):
@@ -71,23 +68,21 @@ export const login: APIGatewayProxyHandler
         };
     }
 
-    const { id, token } = await authenticate(username, pw) || { };
+    const token = await authenticate(username, pw);
     if (!token) {
         return {
             statusCode: 401,
             body: "Incorrect password",
         };
     }
+
     return {
         statusCode: 200,
         body: JSON.stringify({
             token,
         }),
-        multiValueHeaders: {
-            "Set-Cookie": [
-                "pepegaboard_auth=" + token,
-                "pepegaboard_user=" + id,
-            ],
+        headers: {
+            "Set-Cookie": "pb_jwt=" + token,
         },
     };
 }
@@ -108,12 +103,11 @@ export const register: APIGatewayProxyHandler
     if (!isValidUsername(request.username)) {
         return {
             statusCode: 400,
-            body: "Invalid username"
+            body: "Invalid username",
         };
     }
 
-    // TODO: check if username already exists in DB
-    if (pepegadb.fetchUser(request.username) != undefined) {
+    if (await pepegadb.fetchUser(request.username) != undefined) {
         return {
             statusCode: 400,
             body: "User already exists",
@@ -122,7 +116,7 @@ export const register: APIGatewayProxyHandler
 
     const id = randomUUID();
     const salt = randomBytes(16).toString("hex");
-    const hash = await hashSalt(request.username, request.pw, salt);
+    const hash = hashSalt(request.username, request.pw, salt);
 
     // register user in the db
     const item = {
@@ -133,12 +127,16 @@ export const register: APIGatewayProxyHandler
         display_name: request.username, // same as username by default
         pw: hash,
         salt,
+        time: getUnixTime(),
     };
     await pepegadb
         .put({
             Item: item,
             TableName: "pepega-board",
         }).promise();
+
+    // clear hash and salt before returning it
+    item.pw = item.salt = "";
 
     return {
         statusCode: 200,
