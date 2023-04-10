@@ -54,40 +54,22 @@ export default class PepegaDB extends AWS.DynamoDB.DocumentClient {
         return results.Items[0];
     }
 
-    async fetchUserFromSession(id: string, auth: string) {
-        let results = await this
-            .query({
-                TableName: "pepega-board",
-                KeyConditionExpression: "PK = :id and SK = :auth",
-                ExpressionAttributeValues: {
-                    ":id": id,
-                    ":auth": auth,
-                },
-            }).promise();
-
-        if (!results.Items || results.Items.length == 0) {
+    async fetchUserFromID(id: string) {
+        if (!id.startsWith("USER#")) {
             return undefined;
         }
 
-        return results.Items[0];
-    }
-
-    async fetchUserFromID(id: string) {
         let results = await this
-            .query({
+            .get({
                 TableName: "pepega-board",
-                KeyConditionExpression: "PK = :id and SK = :id",
-                ExpressionAttributeValues: {
-                    ":id": id,
-                },
+                Key: {
+                    PK: id,
+                    SK: id,
+                }
             })
             .promise();
 
-        if (!results.Items || results.Items.length == 0) {
-            return undefined;
-        }
-
-        return results.Items[0];
+        return results.Item;
     }
 
     async createPost(title: string, text: string, isPublic: boolean, user: any) {
@@ -96,6 +78,8 @@ export default class PepegaDB extends AWS.DynamoDB.DocumentClient {
         }
 
         const postID = randomUUID();
+        text = text.trim();
+        let previewText = text.
 
         const item = {
             PK: "POST#" + postID,

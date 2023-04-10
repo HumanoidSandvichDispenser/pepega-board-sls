@@ -74,9 +74,26 @@ functions:
       - http:
           path: pepega-board-api/get-posts-from-user
           method: get
+  reply:
+    handler: src/functions/post.reply
+    events:
+      - http:
+          path: pepega-board-api/reply
+          method: post
+  get-thread:
+    handler: src/functions/post.getThread
+    events:
+      - http:
+          path: pepega-board-api/get-thread/{id}
+          method: get
+          request:
+            parameters:
+              paths:
+                id: true
 
 plugins:
-  - serverless-plugin-typescript
+  - serverless-esbuild
+  #- serverless-plugin-typescript # esbuild is faster
   - serverless-dynamodb-local
   - serverless-offline
 
@@ -87,8 +104,8 @@ resources:
       Properties:
         TableName: pepega-board
         ProvisionedThroughput:
-          ReadCapacityUnits: 2
-          WriteCapacityUnits: 2
+          ReadCapacityUnits: 4
+          WriteCapacityUnits: 4
         AttributeDefinitions:
           - AttributeName: PK
             AttributeType: S
@@ -115,8 +132,8 @@ resources:
             Projection:
               ProjectionType: ALL
             ProvisionedThroughput:
-              ReadCapacityUnits: 1
-              WriteCapacityUnits: 1
+              ReadCapacityUnits: 2
+              WriteCapacityUnits: 2
           - IndexName: entity-time-index
             KeySchema:
               - AttributeName: entity
@@ -126,7 +143,7 @@ resources:
             Projection:
               ProjectionType: ALL
             ProvisionedThroughput:
-              ReadCapacityUnits: 1
+              ReadCapacityUnits: 2
               WriteCapacityUnits: 1
           - IndexName: owner-time-index
             KeySchema:
@@ -137,5 +154,5 @@ resources:
             Projection:
               ProjectionType: ALL
             ProvisionedThroughput:
-              ReadCapacityUnits: 1
+              ReadCapacityUnits: 2
               WriteCapacityUnits: 1
