@@ -109,7 +109,7 @@ export const register: APIEndpoint = async (event) => {
         };
     }
 
-    const id = "USER#" + randomUUID();
+    const id = "USER_" + randomUUID();
     const salt = randomBytes(16).toString("hex");
     const hash = hashSalt(request.username, request.pw, salt);
 

@@ -55,7 +55,7 @@ export default class PepegaDB extends AWS.DynamoDB.DocumentClient {
     }
 
     async fetchUserFromID(id: string) {
-        if (!id.startsWith("USER#")) {
+        if (!id.startsWith("USER_")) {
             return undefined;
         }
 
@@ -82,8 +82,8 @@ export default class PepegaDB extends AWS.DynamoDB.DocumentClient {
         let preview = text.length > 64 ? text : text.substring(0, 61) + "...";
 
         const item = {
-            PK: "POST#" + postID,
-            SK: "POST#" + postID,
+            PK: "POST_" + postID,
+            SK: "POST_" + postID,
             title,
             text,
             preview: preview,

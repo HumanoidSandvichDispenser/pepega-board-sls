@@ -241,7 +241,7 @@ export const reply: APIEndpoint = async (event) => {
 
     if (existingThread == undefined && post.entity == "POST") {
         // if we are a post create a new thread
-        threadID = "THREAD#" + randomUUID();
+        threadID = "THREAD_" + randomUUID();
 
         await pepegadb.batchWrite({
             RequestItems: {
@@ -266,14 +266,14 @@ export const reply: APIEndpoint = async (event) => {
                         owner_display_name: post.owner_display_name,
                         entity: "PARTICIPANT",
                     }),
-                    putRequest(threadID, "TIME#" + post.time, {
+                    putRequest(threadID, "TIME_" + post.time, {
                         title: post.title,
                         text: post.text,
                         owner: post.owner,
                         time: post.time,
                         entity: "POST",
                     }),
-                    putRequest(threadID, "TIME#" + time, {
+                    putRequest(threadID, "TIME_" + time, {
                         text,
                         owner: sender.PK,
                         time,
@@ -299,7 +299,7 @@ export const reply: APIEndpoint = async (event) => {
             TableName: "pepega-board",
             Item: {
                 PK: threadID,
-                SK: "TIME#" + time,
+                SK: "TIME_" + time,
                 text,
                 owner: sender.PK,
                 time,
@@ -369,7 +369,7 @@ export const getThread: APIEndpoint = async (event) => {
             (item.owner == auth.aud || item.is_public);
     });
 
-    let replies = result.Items?.filter((item) => item.SK.startsWith("TIME#"))
+    let replies = result.Items?.filter((item) => item.SK.startsWith("TIME_"))
         .map((reply) => {
             console.log("aud = " + auth.aud);
             console.log("own = " + reply.owner);
