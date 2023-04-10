@@ -79,19 +79,20 @@ export default class PepegaDB extends AWS.DynamoDB.DocumentClient {
 
         const postID = randomUUID();
         text = text.trim();
-        let previewText = text.
+        let preview = text.length > 64 ? text : text.substring(0, 61) + "...";
 
         const item = {
             PK: "POST#" + postID,
             SK: "POST#" + postID,
             title,
             text,
+            preview: preview,
             is_public: isPublic,
             owner: user.PK,
             owner_username: user.username,
             owner_display_name: user.display_name,
             entity: "POST",
-            time: getUnixTime(),
+            time: getUnixTime(false),
         };
 
         return await this

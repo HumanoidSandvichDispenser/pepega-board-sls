@@ -59,7 +59,12 @@ export const createPost: APIEndpoint = async (event) => {
     };
 }
 
+/**
+ * Gets the 15 latest posts
+ */
 export const getPosts: APIEndpoint = async (event) => {
+    let id = authenticateCookies(event.headers)?.aud;
+
     let results = await pepegadb
         .query({
             TableName: "pepega-board",
@@ -67,7 +72,18 @@ export const getPosts: APIEndpoint = async (event) => {
             KeyConditionExpression: "entity = :entity",
             ExpressionAttributeValues: {
                 ":entity": "POST"
-            }
+            },
+            ScanIndexForward: false,
+            Limit: 15,
+            ProjectionExpression: [
+                "PK",
+                "SK",
+                "title",
+                "preview",
+                "owner",
+                "owner_username",
+                "owner_display_name",
+            ].join(", "),
         })
         .promise();
 
@@ -79,7 +95,8 @@ export const getPosts: APIEndpoint = async (event) => {
     }
 
     let filteredResults = results.Items.map((v) => {
-        if (!v.is_public) {
+        // remove identifying info if we're not the owner or posted anonymously
+        if (!v.is_public && v.owner != id) {
             v.owner = v.owner_username = v.owner_display_name = undefined;
         }
         return v;
@@ -215,7 +232,7 @@ export const reply: APIEndpoint = async (event) => {
     }
 
     let threadID: string;
-    const time = getUnixTime();
+    const time = getUnixTime(false);
 
     if (existingThread == undefined && post.entity == "POST") {
         // if we are a post create a new thread

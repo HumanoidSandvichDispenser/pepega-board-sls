@@ -8,8 +8,12 @@ export function isValidUsername(username: string): boolean {
     return /^[a-zA-Z0-9_]*$/gm.test(username);
 }
 
-export function getUnixTime(): number {
-    return Math.floor(new Date().getTime() / 1000);
+export function getUnixTime(floor = true): number {
+    let t = new Date().getTime() / 1000;
+    if (!floor) {
+        return t;
+    }
+    return Math.floor(t / 1000);
 }
 
 export function getCookies(headers: any) {
