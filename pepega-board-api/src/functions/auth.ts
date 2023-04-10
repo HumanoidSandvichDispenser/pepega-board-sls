@@ -109,7 +109,7 @@ export const register: APIEndpoint = async (event) => {
         };
     }
 
-    const id = randomUUID();
+    const id = "USER#" + randomUUID();
     const salt = randomBytes(16).toString("hex");
     const hash = hashSalt(request.username, request.pw, salt);
 
@@ -117,8 +117,8 @@ export const register: APIEndpoint = async (event) => {
 
     // register user in the db
     const item = {
-        PK: "USER#" + id,
-        SK: "USER#" + id,
+        PK: id,
+        SK: id,
         entity: "USER",
         username: request.username,
         display_name: request.username, // same as username by default

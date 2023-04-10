@@ -11,7 +11,7 @@ custom:
       inMemory: false
       heapInitial: 200m
       heapMax: 1g
-      dbPath: /tmp/dynamodb/
+      dbPath: /var/tmp/dynamodb/
       migrate: true
       seed: true
       convertEmptyValues: true

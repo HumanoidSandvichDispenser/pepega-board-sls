@@ -47,7 +47,7 @@ export const createPost: APIEndpoint = async (event) => {
     const id = auth.aud;
     console.log(`User ${id} creating new post`);
 
-    await pepegadb.createPost(
+    let post = await pepegadb.createPost(
         title,
         text,
         isPublic,
@@ -55,7 +55,7 @@ export const createPost: APIEndpoint = async (event) => {
 
     return {
         statusCode: 200,
-        body: "",
+        body: JSON.stringify(post?.Attributes),
     };
 }
 
@@ -71,7 +71,7 @@ export const getPosts: APIEndpoint = async (event) => {
             IndexName: "entity-time-index",
             KeyConditionExpression: "entity = :entity",
             ExpressionAttributeValues: {
-                ":entity": "POST"
+                ":entity": "POST",
             },
             ScanIndexForward: false,
             Limit: 15,
@@ -80,12 +80,17 @@ export const getPosts: APIEndpoint = async (event) => {
                 "SK",
                 "title",
                 "preview",
-                "owner",
+                "#owner",
                 "owner_username",
                 "owner_display_name",
             ].join(", "),
+            ExpressionAttributeNames: {
+                "#owner": "owner",
+            }
         })
         .promise();
+
+    console.log(results);
 
     if (!results.Items) {
         return {
