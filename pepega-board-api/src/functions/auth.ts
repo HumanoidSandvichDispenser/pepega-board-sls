@@ -11,6 +11,8 @@ import APIEndpoint from "src/apiendpoint";
 
 const pepegadb = new PepegaDB();
 
+const HOSTNAME = process.env.HOSTNAME;
+
 function hashSalt(name: string, pw: string, salt: string) {
     let fullSalt = name + salt + "gachiGASM";
     return pbkdf2Sync(pw, fullSalt, 77777, 64, "sha512").toString("hex");
@@ -37,7 +39,12 @@ async function authenticate(username: string, pw: string) {
 
     let token = createJWT(user.PK, { });
 
-    return token;
+    return {
+        token,
+        id: user.PK,
+        username,
+        displayName: user.display_name,
+    };
 };
 
 export const checkAuth: APIEndpoint = async (event) => {
@@ -65,7 +72,7 @@ export const login: APIEndpoint = async (event) => {
         };
     }
 
-    const token = await authenticate(username, pw);
+    const { token, id, displayName } = await authenticate(username, pw) ?? { };
     if (!token) {
         return {
             statusCode: 401,
@@ -76,6 +83,9 @@ export const login: APIEndpoint = async (event) => {
     return {
         statusCode: 200,
         body: JSON.stringify({
+            id,
+            username: username,
+            displayName: displayName,
             token,
         }),
         headers: {
@@ -93,6 +103,8 @@ export const register: APIEndpoint = async (event) => {
             body: "No username/password supplemented",
         };
     }
+
+    request.displayName ??= request.username;
 
     // must be a valid username
     if (!isValidUsername(request.username)) {
@@ -121,7 +133,7 @@ export const register: APIEndpoint = async (event) => {
         SK: id,
         entity: "USER",
         username: request.username,
-        display_name: request.username, // same as username by default
+        display_name: request.displayName,
         pw: hash,
         salt,
         time: getUnixTime(),
@@ -140,6 +152,7 @@ export const register: APIEndpoint = async (event) => {
         body: JSON.stringify({
             id,
             username: request.username,
+            displayName: request.displayName,
             token,
         }),
         headers: {

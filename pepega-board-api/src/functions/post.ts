@@ -55,7 +55,7 @@ export const createPost: APIEndpoint = async (event) => {
 
     return {
         statusCode: 200,
-        body: JSON.stringify(post?.Attributes),
+        body: JSON.stringify(post),
     };
 }
 
@@ -83,6 +83,7 @@ export const getPosts: APIEndpoint = async (event) => {
                 "#owner",
                 "owner_username",
                 "owner_display_name",
+                "is_public",
             ].join(", "),
             ExpressionAttributeNames: {
                 "#owner": "owner",

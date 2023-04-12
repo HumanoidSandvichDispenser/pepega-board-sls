@@ -15,6 +15,7 @@ custom:
       migrate: true
       seed: true
       convertEmptyValues: true
+  hostname: localhost
 
 provider:
   name: aws
@@ -36,6 +37,7 @@ provider:
             #- { "Fn::GetAtt": ["PepegaBoardTable", "Arn"] }
   environment:
     JWT_SECRET: ${self:custom.secrets.JWT_SECRET}
+    HOSTNAME: ${self:custom.hostname}
 
 functions:
   register:

@@ -79,7 +79,7 @@ export default class PepegaDB extends AWS.DynamoDB.DocumentClient {
 
         const postID = randomUUID();
         text = text.trim();
-        let preview = text.length > 64 ? text : text.substring(0, 61) + "...";
+        let preview = text.length > 64 ? text.substring(0, 61) + "..." : text;
 
         const item = {
             PK: "POST_" + postID,
@@ -95,11 +95,12 @@ export default class PepegaDB extends AWS.DynamoDB.DocumentClient {
             time: getUnixTime(false),
         };
 
-        return await this
+        await this
             .put({
                 TableName: "pepega-board",
                 Item: item,
             })
             .promise();
+        return item;
     }
 }
